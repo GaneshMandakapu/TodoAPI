@@ -11,4 +11,4 @@ jobs:
 
       - name: Build Vapor project inside Docker
         run: |
-          docker run --rm -v "$(pwd):/workspace" -w /workspace swift:5.9 bash -c "swift build && swift test"
+          docker run --rm -v "$(pwd):/workspace" -w /workspace swift:5.9.2 bash -c "swift build && swift test"
