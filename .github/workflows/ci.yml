@@ -1,27 +1,14 @@
-# .github/workflows/ci.yml
-name: Swift Vapor CI
+name: Vapor CI with Docker
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Swift
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "5.9"  # or latest stable version you are using
-
-      - name: Build project
-        run: swift build -v
-
-      - name: Run tests
-        run: swift test -v
+      - name: Build Vapor project inside Docker
+        run: |
+          docker run --rm -v "$(pwd):/workspace" -w /workspace swift:5.9 bash -c "swift build && swift test"
