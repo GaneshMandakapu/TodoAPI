@@ -1,37 +1,38 @@
-import Fluent
 import Vapor
+import Fluent
 
 struct TodoController: RouteCollection {
     func boot(routes: any RoutesBuilder) throws {
-        let todos = routes.grouped("todos")
-
-        todos.get(use: self.index)
-        todos.post(use: self.create)
-        todos.group(":todoID") { todo in
-            todo.delete(use: self.delete)
-        }
+        let todos = routes.grouped("todos").grouped(JWTMiddleware()) // 👈 Secure with JWT
+        todos.get(use: index)
+        todos.post(use: create)
+        todos.delete(":todoID", use: delete)
     }
 
-    @Sendable
-    func index(req: Request) async throws -> [TodoDTO] {
-        try await Todo.query(on: req.db).all().map { $0.toDTO() }
+    func index(req: Request) throws -> EventLoopFuture<[Todo]> {
+        let payload = try req.jwt.verify(as: UserPayload.self)
+        let userID = payload.userID
+        return Todo.query(on: req.db)
+            .filter(\.$user.$id == payload.userID)
+            .all()
     }
 
-    @Sendable
-    func create(req: Request) async throws -> TodoDTO {
-        let todo = try req.content.decode(TodoDTO.self).toModel()
-
-        try await todo.save(on: req.db)
-        return todo.toDTO()
+    func create(req: Request) throws -> EventLoopFuture<Todo> {
+        let payload = try req.jwt.verify(as: UserPayload.self)
+        let todo = try req.content.decode(Todo.self)
+        let newTodo = Todo(title: todo.title, userID: payload.userID)
+        return newTodo.save(on: req.db).map { newTodo }
     }
 
-    @Sendable
-    func delete(req: Request) async throws -> HTTPStatus {
-        guard let todo = try await Todo.find(req.parameters.get("todoID"), on: req.db) else {
-            throw Abort(.notFound)
-        }
-
-        try await todo.delete(on: req.db)
-        return .noContent
+    func delete(req: Request) throws -> EventLoopFuture<HTTPStatus> {
+        let payload = try req.jwt.verify(as: UserPayload.self)
+        return Todo.find(req.parameters.get("todoID"), on: req.db)
+            .unwrap(or: Abort(.notFound))
+            .flatMap { todo in
+                guard todo.$user.id == payload.userID else {
+                    return req.eventLoop.makeFailedFuture(Abort(.forbidden))
+                }
+                return todo.delete(on: req.db).transform(to: .ok)
+            }
     }
 }
