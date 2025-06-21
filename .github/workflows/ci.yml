@@ -1,12 +1,11 @@
-name: Vapor CI
+# .github/workflows/ci.yml
+name: Swift Vapor CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build:
@@ -14,12 +13,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Install Swift
-        uses: fwal/setup-swift@v2
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
         with:
-          swift-version: '5.10' # or your current Swift version
+          swift-version: "5.9"  # or latest stable version you are using
 
       - name: Build project
         run: swift build -v
